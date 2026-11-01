@@ -1,0 +1,1 @@
+from tmdbhelper_sync_floppy.provider import Provider

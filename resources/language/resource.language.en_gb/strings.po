@@ -1,0 +1,32 @@
+msgid ""
+msgstr ""
+"Language: en_GB\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgctxt "#32000"
+msgid "Floppy"
+msgstr ""
+
+msgctxt "#32001"
+msgid "Server URL"
+msgstr ""
+
+msgctxt "#32002"
+msgid "API token"
+msgstr ""
+
+msgctxt "#32003"
+msgid "Your Floppy address, including any reverse proxy path, for example https://floppy.example.com."
+msgstr ""
+
+msgctxt "#32004"
+msgid "The API token from Floppy Settings > Integrations."
+msgstr ""
+
+msgctxt "#32005"
+msgid "No editable static lists are available."
+msgstr ""
+
+msgctxt "#32006"
+msgid "Floppy request failed. See the Kodi log for the endpoint and HTTP status."
+msgstr ""
