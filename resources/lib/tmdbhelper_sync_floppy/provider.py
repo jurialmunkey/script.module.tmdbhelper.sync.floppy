@@ -14,7 +14,7 @@ from tmdbhelper_sync_floppy.scrobbler import ProviderScrobbler
 
 
 class Provider(SyncProvider):
-    interface_version = 3
+    interface_version = 4
     provider_id = 'floppy'
     display_name = 'Floppy'
     sync_classes = {

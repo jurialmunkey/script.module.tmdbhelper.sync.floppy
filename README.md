@@ -1,7 +1,7 @@
 # TMDbHelper Sync - Floppy
 
-Standalone Floppy provider for TMDbHelper 6.20.0 or newer. This addon uses
-TMDbHelper's provider interface version 3 and does not require changes to
+Standalone Floppy provider for TMDbHelper 6.20.2 or newer. This addon uses
+TMDbHelper's provider interface version 4 and does not require changes to
 TMDbHelper or another provider addon.
 
 ## Setup
