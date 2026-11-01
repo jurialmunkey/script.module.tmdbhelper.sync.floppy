@@ -4,8 +4,7 @@ from requests import Session, RequestException
 from jurialmunkey.ftools import cached_property
 from tmdbhelper.lib.addon.logger import kodi_log
 from tmdbhelper_sync_floppy.pagination import FloppyPagination
-from tmdbhelper_sync_floppy.response import FloppyError, FloppyResponse
-from tmdbhelper_sync_floppy.settings import FloppySettings
+from tmdbhelper_sync_floppy.response import FloppyResponse, SUCCESS_CODES
 
 
 class FloppyAPI:
@@ -39,22 +38,28 @@ class FloppyAPI:
             # Exception messages can contain URLs or credentials. Log only the type.
             kodi_log(f'Floppy: {method} {path}: {type(exc).__name__}', 1)
             return FloppyResponse(503, {'detail': 'Unable to connect to Floppy'})
+        status_code = response.status_code
+        success = status_code in SUCCESS_CODES
+        is_write = method != 'GET' and path != 'sync/bootstrap'
+        changed = False
+        if not success:
+            kodi_log(f'Floppy: {method} {path}: HTTP {status_code}', 1)
+        elif is_write:
+            # Record the write before reading the body: a successful write with an
+            # unreadable body has still changed server state.
+            self.snapshots.clear()
+            self.mutation_count += 1
+            changed = True
         try:
             body = response.json() if response.content else {}
         except ValueError:
-            body = {'detail': 'Floppy returned an invalid JSON response'}
-            if response.status_code in (200, 201):
-                return FloppyResponse(502, body)
+            body = None
         if not isinstance(body, dict):
-            raise FloppyError(f'Floppy returned an invalid response envelope for {path}')
-        result = FloppyResponse(response.status_code, body)
-        if response.status_code not in (200, 201, 204):
-            kodi_log(f'Floppy: {method} {path}: HTTP {response.status_code}', 1)
-        elif method != 'GET' and path != 'sync/bootstrap':
-            self.snapshots.clear()
-            self.mutation_count += 1
-            result.changed = True
-        return result
+            if success and not is_write:
+                return FloppyResponse(502, {
+                    'detail': f'Floppy returned an invalid response for {path}'})
+            body = {} if success else {'detail': f'HTTP {status_code}'}
+        return FloppyResponse(status_code, body, changed=changed)
 
     def read(self, path, params=None):
         return self.request(path, params=params).require_success()

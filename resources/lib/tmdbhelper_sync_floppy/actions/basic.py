@@ -15,6 +15,16 @@ class ItemWatched(ItemSync, BasicItemWatched):
     sync_types = ('SyncWatched', 'SyncPlayback', 'SyncWatchlist')
     show_sync_types = ('SyncNextEpisodes', 'SyncAllNextEpisodes', 'SyncAiredEpisodes')
 
+    def get_sync_dependencies(self):
+        # Watchlist membership is stored on the show, so a season or episode
+        # action must refresh the show's watchlist rather than the episode's.
+        dependencies = super().get_sync_dependencies()
+        if self.base_item_type != 'show':
+            return dependencies
+        return tuple(
+            item for item in dependencies if item[0] != 'SyncWatchlist'
+        ) + (('SyncWatchlist', 'show'),)
+
 
 class ItemUnwatched(ItemWatched, BasicItemUnwatched):
     pass

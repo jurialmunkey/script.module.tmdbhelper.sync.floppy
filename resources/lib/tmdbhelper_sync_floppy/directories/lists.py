@@ -7,7 +7,7 @@ from tmdbhelper_sync_floppy.directories.item import get_menu_items
 from tmdbhelper_sync_floppy.directories.mapper import (
     FloppyMenuMapper, FloppyListMapper, FloppyMediaMapper, FloppyRecordMapper,
 )
-from tmdbhelper_sync_floppy.response import FloppyError
+from tmdbhelper_sync_floppy.response import SYNC_ERRORS, describe_error
 from tmdbhelper_sync_floppy.sync.snapshot import (
     FloppyWatchlistSnapshot, FloppyCollectionSnapshot, FloppyWatchedSnapshot,
     FloppyPlaybackSnapshot, FloppyNextEpisodesSnapshot,
@@ -32,8 +32,8 @@ class FloppyProperties(ListProperties):
     def get_items(self):
         try:
             return [self.get_mapped_item(item) for item in self.entries]
-        except FloppyError as exc:
-            kodi_log(f'Floppy directory: {exc}', 1)
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy directory: {describe_error(exc)}', 1)
             return []
 
     def get_mapped_item(self, item, add_infoproperties=None):
@@ -79,7 +79,11 @@ class FloppyUserListProperties(ListStandardProperties):
 
     @cached_property
     def list_editable(self):
-        return self.provider.api.is_editable_list(self.list_id)
+        try:
+            return self.provider.api.is_editable_list(self.list_id)
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy list permissions: {describe_error(exc)}', 1)
+            return False
 
     def get_api_response(self, page=1):
         if not self.provider.is_authorized():
@@ -93,8 +97,8 @@ class FloppyUserListProperties(ListStandardProperties):
                 'results': data['results'], 'total_results': total,
                 'total_pages': (total + 19) // 20,
             }
-        except FloppyError as exc:
-            kodi_log(f'Floppy list: {exc}', 1)
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy list: {describe_error(exc)}', 1)
             return None
 
     def get_mapped_item(self, item, add_infoproperties=None):

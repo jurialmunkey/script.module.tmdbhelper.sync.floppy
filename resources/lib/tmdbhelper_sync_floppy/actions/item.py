@@ -1,8 +1,9 @@
 from jurialmunkey.ftools import cached_property
 from tmdbhelper.lib.addon.dialog import busy_decorator
+from tmdbhelper.lib.addon.logger import kodi_log
 from tmdbhelper.lib.script.sync.provider import ItemSync as ProviderItemSync
 from tmdbhelper.lib.script.sync.request import ItemSync as RequestItemSync
-from tmdbhelper_sync_floppy.response import FloppyError, FloppyResponse
+from tmdbhelper_sync_floppy.response import FloppyError, FloppyResponse, SYNC_ERRORS, describe_error
 
 
 class ItemAction(RequestItemSync):
@@ -28,6 +29,9 @@ class ItemAction(RequestItemSync):
             response = self.send_request()
         except FloppyError as exc:
             response = FloppyResponse(exc.status_code, {'detail': str(exc)})
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy action: {describe_error(exc)}', 1)
+            response = FloppyResponse(502, {'detail': 'Floppy returned an unexpected response'})
         if response is not None:
             response.changed = self.api.mutation_count != before
         return response

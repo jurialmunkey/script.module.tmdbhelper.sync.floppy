@@ -26,13 +26,16 @@ class FloppySnapshot:
 
     def get_metadata(self):
         return {
-            item.tmdb_id: dict(
-                item.record,
-                aired_episodes=(
-                    item.entry['progress'] + item.entry['episodes_left']
-                    if item.entry.get('episodes_left') is not None else None))
+            item.tmdb_id: self.get_entry_metadata(item)
             for item in self.get_media(self.get_media_entries())
         }
+
+    @staticmethod
+    def get_entry_metadata(item):
+        progress = item.entry.get('progress')
+        remaining = item.entry.get('episodes_left')
+        aired = progress + remaining if progress is not None and remaining is not None else None
+        return dict(item.record, aired_episodes=aired)
 
     def get_item_metadata(self, item):
         return self.get_metadata_for_id(item.tmdb_id)
@@ -41,8 +44,10 @@ class FloppySnapshot:
         try:
             return dict(self.metadata[tmdb_id])
         except KeyError:
+            # Titles that are not tracked (for example a watched episode of a show
+            # that was later untracked) are absent from the media list.
             details = self.api.get_details(self.media_type, tmdb_id)
-            record = FloppyMedia(details).record
+            record = self.get_entry_metadata(FloppyMedia(details))
             self.metadata[tmdb_id] = record
             return dict(record)
 
@@ -74,6 +79,15 @@ class FloppyWatchedSnapshot(FloppySnapshot):
         return self.api.get_cached_snapshot(
             'watched_state', lambda: FloppyWatchedState(self.api).get_items())
 
+    def get_watched_episode_keys(self, tmdb_id=None):
+        """(tmdb_id, season, episode) of watched episodes, without metadata lookups."""
+        return {
+            (item.tmdb_id, item.record['season_number'], item.record['episode_number'])
+            for item in self.get_media(self.get_states())
+            if item.item_type == 'episode' and item.entry['watched']
+            and (tmdb_id is None or item.tmdb_id == tmdb_id)
+        }
+
     def get_items(self):
         media = self.get_media(self.get_states())
         item_types = ('movie',) if self.item_type == 'movie' else ('episode',)
@@ -88,7 +102,11 @@ class FloppyWatchedSnapshot(FloppySnapshot):
         }.values())
         if self.item_type == 'movie':
             return records
-        return records + self.get_parents(records, 'show') + self.get_parents(records, 'season')
+        shows = self.get_parents(records, 'show')
+        # Every season of a fully watched show is complete, so its released
+        # episode count is known without a season details request.
+        complete = {item['tmdb_id'] for item in shows if item['plays']}
+        return records + shows + self.get_parents(records, 'season', complete)
 
     def get_record(self, item):
         record = self.get_item_metadata(item)
@@ -101,21 +119,25 @@ class FloppyWatchedSnapshot(FloppySnapshot):
         })
         return record
 
-    def get_parents(self, records, item_type):
+    def get_parents(self, records, item_type, complete=()):
         groups = defaultdict(list)
         for item in records:
             if item['season_number'] == 0:
                 continue
             key = (item['tmdb_id'], item['season_number'] if item_type == 'season' else None)
             groups[key].append(item)
-        return [self.get_parent(key, items, item_type) for key, items in groups.items()]
+        return [
+            self.get_parent(key, items, item_type, key[0] in complete)
+            for key, items in groups.items()]
 
-    def get_parent(self, key, records, item_type):
+    def get_parent(self, key, records, item_type, complete=False):
         if item_type == 'show':
-            aired = self.metadata[key[0]]['aired_episodes']
+            aired = self.get_metadata_for_id(key[0]).get('aired_episodes')
+        elif complete:
+            aired = len(records)
         else:
             # Season detail returns the released count as max_progress.
-            aired = self.api.get_details('tv', key[0], key[1])['max_progress']
+            aired = self.api.get_details('tv', key[0], key[1]).get('max_progress')
         return dict(
             records[0], item_type=item_type, season_number=key[1], episode_number=None,
             plays=min(item['plays'] for item in records) if aired and len(records) >= aired else 0,
@@ -138,7 +160,7 @@ class FloppyCollectionSnapshot(FloppySnapshot):
         ]
         records = list({
             (item['tmdb_id'], item['season_number'], item['episode_number']): item
-            for item in sorted(records, key=lambda item: item['last_collected_at'])
+            for item in sorted(records, key=lambda item: item['last_collected_at'] or '')
         }.values())
         if self.item_type == 'movie':
             return records
@@ -155,10 +177,14 @@ class FloppyCollectionSnapshot(FloppySnapshot):
             dict(
                 dict(items[0], **self.get_metadata_for_id(key[0])),
                 item_type=item_type, season_number=key[1], episode_number=None,
-                last_collected_at=max(item['last_collected_at'] for item in items),
-                last_updated_at=max(item['last_updated_at'] for item in items))
+                last_collected_at=self.get_latest(items, 'last_collected_at'),
+                last_updated_at=self.get_latest(items, 'last_updated_at'))
             for key, items in groups.items()
         ]
+
+    @staticmethod
+    def get_latest(items, key):
+        return max((item[key] for item in items if item[key]), default=None)
 
 
 class FloppyPlaybackSnapshot(FloppySnapshot):
@@ -210,11 +236,9 @@ class FloppyAllNextEpisodesSnapshot(FloppyNextEpisodesSnapshot):
         if self.item_type == 'movie':
             return []
         from tmdbhelper_sync_floppy.episodes import FloppyEpisodes
-        watched = FloppyWatchedSnapshot(self.api, 'show').get_items()
-        watched_ids = {
-            (item['tmdb_id'], item['season_number'], item['episode_number'])
-            for item in watched if item['item_type'] == 'episode'
-        }
+        # Only episode identities are needed, not the full watched snapshot with
+        # its metadata and per-season requests.
+        watched_ids = FloppyWatchedSnapshot(self.api, 'show').get_watched_episode_keys()
         shows = [
             item for item in self.get_media(self.get_media_entries())
             if item.entry['status'] not in (0, 2, 4) and item.entry['next_episode']

@@ -29,4 +29,11 @@ class FloppySettings:
 
     @property
     def is_configured(self):
-        return bool(self.server_url and self.api_token)
+        # TMDbHelper calls is_authorized() without guarding it, so an invalid URL
+        # must read as "not configured" rather than raise into its menus.
+        try:
+            return bool(self.server_url and self.api_token)
+        except ValueError as exc:
+            from xbmc import log, LOGWARNING
+            log(f'TMDbHelper Floppy: {exc}', LOGWARNING)
+            return False

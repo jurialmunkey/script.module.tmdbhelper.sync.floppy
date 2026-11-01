@@ -3,7 +3,7 @@ from tmdbhelper.lib.items.directories.mapper_basic import ItemMapper
 from tmdbhelper.lib.sync.providers.monitor_lists import MonitorListsSupplier
 from jurialmunkey.ftools import cached_property
 from tmdbhelper_sync_floppy.media import FloppyMedia
-from tmdbhelper_sync_floppy.response import FloppyError
+from tmdbhelper_sync_floppy.response import SYNC_ERRORS, describe_error
 
 
 class FloppyMonitorListMapper(ItemMapper):
@@ -44,8 +44,8 @@ class FloppyMonitorLists(MonitorListsSupplier):
             return []
         try:
             entries = self.provider.api.get_lists()
-        except FloppyError as exc:
-            kodi_log(f'Floppy monitored lists: {exc}', 1)
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy monitored lists: {describe_error(exc)}', 1)
             return []
         watchlists = [
             {'id': f'watchlist/{media_type}', 'name': f'Watchlist {label}'}
@@ -68,6 +68,6 @@ class FloppyMonitorLists(MonitorListsSupplier):
                 item for item in (FloppyMonitorItemMapper(entry).item for entry in entries)
                 if item is not None
             ]
-        except FloppyError as exc:
-            kodi_log(f'Floppy monitored list: {exc}', 1)
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy monitored list: {describe_error(exc)}', 1)
             return None

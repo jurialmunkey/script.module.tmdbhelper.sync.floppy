@@ -27,6 +27,7 @@ class FloppyItemRequest:
         targets = self.get_targets()
         if not targets:
             raise FloppyError('No released episodes are available for this action', 404)
+        targets = self.filter_targets(targets, remove)
         monitor = Monitor()
         response = FloppyResponse(204)
         for season, episode in targets:
@@ -35,6 +36,9 @@ class FloppyItemRequest:
             response = self.send(remove, season, episode)
             response.require_success()
         return response
+
+    def filter_targets(self, targets, remove):
+        return targets
 
     def send(self, remove, season, episode):
         raise NotImplementedError

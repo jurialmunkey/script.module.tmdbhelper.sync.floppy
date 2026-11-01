@@ -1,6 +1,6 @@
 from tmdbhelper.lib.addon.logger import kodi_log
 from tmdbhelper.lib.sync.datatype import DataType, DataTypeEpisodesInShows
-from tmdbhelper_sync_floppy.response import FloppyError
+from tmdbhelper_sync_floppy.response import SYNC_ERRORS, describe_error
 from tmdbhelper_sync_floppy.sync.itemdata import FloppySyncItem
 
 
@@ -12,8 +12,8 @@ class FloppyDataType(DataType):
             return None
         try:
             return self.snapshot_class(self.provider.api, self.item_type).get_items()
-        except FloppyError as exc:
-            kodi_log(f'Floppy sync {self.method}: {exc}', 1)
+        except SYNC_ERRORS as exc:
+            kodi_log(f'Floppy sync {self.method}: {describe_error(exc)}', 1)
             return None
 
     def get_syncitem(self, meta):

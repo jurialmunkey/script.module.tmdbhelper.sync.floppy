@@ -43,7 +43,8 @@ it is installed. Kodi may show its normal third-party-provider confirmation.
   it does not untrack a title and delete its history.
 - Adding watched records a dated movie/episode play. Marking unwatched sets
   canonical watched state to false without deleting consumption history.
-  Parent-show and season actions operate on their released episodes. Specials
+  Parent-show and season actions operate on their released episodes; marking a
+  show or season watched skips episodes that are already watched. Specials
   are included when an individual special or season zero is addressed explicitly;
   normal whole-show actions and episode counts exclude specials.
 - Floppy owns collection copies per movie or TV episode. Parent show/season
@@ -55,8 +56,10 @@ it is installed. Kodi may show its normal third-party-provider confirmation.
 - Playback percentages come from saved positions in seconds and known durations,
   independently of Floppy's episode-count tracking progress. Entries without
   a usable duration cannot be represented as a Kodi resume percentage.
-- Scrobbling sends start/pause/stop events, saves resume positions explicitly on
-  pause, and uses TMDbHelper's 80% completion threshold on stop.
+- Scrobbling sends the start and stop events that TMDbHelper reports and uses
+  its 80% completion threshold. Floppy saves the resume position on every stop,
+  including incomplete ones. TMDbHelper does not report pauses to providers, so
+  a position is saved when playback stops, not when it is paused.
 - User lists are browsable regardless of which sync sources are selected.
   Editable static lists support add/remove through **Sync Options > Floppy**.
   Within an editable Floppy list the action removes from that list; elsewhere it
@@ -75,7 +78,9 @@ short-lived snapshots. A partially completed multi-item action also invalidates
 the state it changed before reporting the failure.
 
 Failed, unauthorized, cancelled, malformed or incomplete snapshots never replace
-the previous sync cache. A successful empty snapshot clears the relevant columns.
+the previous sync cache. Unexpected response data fails only the Floppy
+operation and is logged; it is not raised into TMDbHelper. An invalid server
+URL is logged and treated as not configured. A successful empty snapshot clears the relevant columns.
 Watched sync reads a bounded canonical baseline and replays concurrent changes;
 it does not infer watched state solely from history, which would undo an explicit
 unwatched assertion.
