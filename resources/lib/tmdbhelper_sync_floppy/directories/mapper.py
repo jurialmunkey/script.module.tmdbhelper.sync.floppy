@@ -51,10 +51,30 @@ class FloppyListMapper(ItemMapper):
         )]
 
 
-class FloppyMediaMapper(ItemMapper):
+class FloppyItemMapper(ItemMapper):
     list_id = None
     list_editable = False
 
+    @cached_property
+    def label(self):
+        return self.record['title'] or ''
+
+    def get_params(self):
+        return {
+            'info': 'details', 'tmdb_type': self.record['tmdb_type'],
+            'tmdb_id': self.record['tmdb_id'],
+            'season': self.record['season_number'], 'episode': self.record['episode_number'],
+        }
+
+    def get_infoproperties(self):
+        return {
+            'tmdb_type': self.record['tmdb_type'], 'tmdb_id': self.record['tmdb_id'],
+            'floppy_list_id': str(self.list_id) if self.list_id is not None else None,
+            'floppy_list_editable': 'True' if self.list_editable else None,
+        }
+
+
+class FloppyMediaMapper(FloppyItemMapper):
     @cached_property
     def media(self):
         return FloppyMedia(self.meta)
@@ -63,23 +83,12 @@ class FloppyMediaMapper(ItemMapper):
     def record(self):
         return self.media.record
 
-    @cached_property
-    def label(self):
-        return self.record['title'] or ''
-
     def get_infolabels(self):
         return {
             'title': self.label,
             'mediatype': 'tvshow' if self.record['item_type'] == 'show' else self.record['item_type'],
             'year': self.record['year'], 'premiered': self.record['premiered'],
             'duration': self.record['runtime'], 'plot': self.media.item.get('synopsis'),
-            'season': self.record['season_number'], 'episode': self.record['episode_number'],
-        }
-
-    def get_params(self):
-        return {
-            'info': 'details', 'tmdb_type': self.record['tmdb_type'],
-            'tmdb_id': self.record['tmdb_id'],
             'season': self.record['season_number'], 'episode': self.record['episode_number'],
         }
 
@@ -92,28 +101,18 @@ class FloppyMediaMapper(ItemMapper):
     def get_unique_ids(self):
         return self.media.ids
 
-    def get_infoproperties(self):
-        return {
-            'tmdb_type': self.record['tmdb_type'], 'tmdb_id': self.record['tmdb_id'],
-            'floppy_list_id': str(self.list_id) if self.list_id is not None else None,
-            'floppy_list_editable': 'True' if self.list_editable else None,
-        }
-
     def get_item(self):
         if not self.media.is_supported:
             return {}
         return super().get_item()
 
 
-class FloppyRecordMapper(FloppyMediaMapper):
+class FloppyRecordMapper(FloppyItemMapper):
     """Directory output from a normalized provider snapshot, without database access."""
 
     @cached_property
     def record(self):
         return self.meta
-
-    def get_item(self):
-        return ItemMapper.get_item(self)
 
     def get_infolabels(self):
         return {
@@ -121,9 +120,6 @@ class FloppyRecordMapper(FloppyMediaMapper):
             'mediatype': 'tvshow' if self.record['item_type'] == 'show' else self.record['item_type'],
             'season': self.record.get('season_number'), 'episode': self.record.get('episode_number'),
         }
-
-    def get_art(self):
-        return {}
 
     def get_unique_ids(self):
         return {'tmdb': self.record['tmdb_id']}
