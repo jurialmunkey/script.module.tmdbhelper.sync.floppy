@@ -18,6 +18,13 @@
                         <hidden>true</hidden>
                     </control>
                 </setting>
+                <setting id="test_connection" type="action" label="32007" help="32008">
+                    <level>0</level>
+                    <data>RunScript(script.module.tmdbhelper.sync.floppy,test_connection)</data>
+                    <control type="button" format="action">
+                        <close>true</close>
+                    </control>
+                </setting>
             </group>
         </category>
     </section>

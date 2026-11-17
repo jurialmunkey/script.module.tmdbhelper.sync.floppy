@@ -60,6 +60,10 @@ class Provider(SyncProvider):
     def is_authorized(self):
         return self.settings.is_configured
 
+    def validate_setup(self):
+        from tmdbhelper_sync_floppy.connection import FloppyConnectionTest
+        return FloppyConnectionTest(self).run(show_success=False)
+
     def get_last_activities(self):
         # Floppy has no last-activities endpoint. Refresh snapshots every ten minutes.
         timestamp = get_timestring_zulu_now()

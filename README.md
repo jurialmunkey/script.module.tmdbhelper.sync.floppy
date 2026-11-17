@@ -1,8 +1,9 @@
 # TMDbHelper Sync - Floppy
 
-Standalone Floppy provider for TMDbHelper 6.20.2 or newer. This addon uses
+Standalone Floppy provider for TMDbHelper 6.22.2 or newer. This addon uses
 TMDbHelper's provider interface version 4 and does not require changes to
-TMDbHelper or another provider addon.
+another provider addon. Connection-gated setup uses TMDbHelper's optional
+`validate_setup()` hook, introduced in 6.22.2.
 
 ## Setup
 
@@ -28,6 +29,36 @@ A legacy account API token works. For a scoped integration token, enable
 `lists:read`, `lists:write`, `sync:read` and `scrobble:write` for all features.
 Collection reads/writes use Floppy's watchlist scopes. No user-settings or token
 management scope is needed.
+
+### Connection testing
+
+Use **Test connection** in this addon's settings. The dialog closes and saves
+the URL and token before testing, then reopens after the result. Default/Custom
+setup runs the same test before offering either choice. Each attempt tests the
+current credentials; no successful-test flag is saved.
+
+The test uses authenticated GET endpoints available in the publicly released
+[Floppy v26.11.12](https://github.com/dannyvfilms/Floppy/releases/tag/v26.11.12),
+with the permissions defined by its
+[scope contract](https://github.com/dannyvfilms/Floppy/blob/v26.11.12/docs/architecture/api-scopes.md):
+
+| Permission | Endpoint under `/api/v1/` |
+| --- | --- |
+| `watchlist:read` | `media/movie/?limit=1` |
+| `progress:read` | `playback/progress/?limit=1` |
+| `lists:read` | `lists/?limit=1` |
+| `sync:read` | `sync/connections/` |
+
+Successful authenticated reads validate the connection and token as well as
+those four read permissions. Empty results are valid. The test stops at the
+first request or response failure and names the affected check.
+
+The success dialog explicitly states that **write permissions were not tested**.
+The test does not send writes, scrobbles or sync bootstrap requests, change sync
+selections, or access cached watched snapshots. No Floppy server modifications
+are required. Read access does not prove sync readiness or permission to write
+to a particular list. Ordinary discovery and `is_authorized()` remain local
+configuration checks.
 
 Floppy is discovered once installed and enabled. Because this addon makes no
 changes to TMDbHelper's catalogue, TMDbHelper cannot offer to install it before

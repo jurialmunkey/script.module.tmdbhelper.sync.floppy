@@ -30,3 +30,31 @@ msgstr ""
 msgctxt "#32006"
 msgid "Floppy request failed. See the Kodi log for the endpoint and HTTP status."
 msgstr ""
+
+msgctxt "#32007"
+msgid "Test connection"
+msgstr ""
+
+msgctxt "#32008"
+msgid "Check the saved server URL, API token and watchlist, progress, lists and sync read access. Write permissions are not tested."
+msgstr ""
+
+msgctxt "#32009"
+msgid "Enter your Floppy server URL first."
+msgstr ""
+
+msgctxt "#32010"
+msgid "Enter your Floppy API token first."
+msgstr ""
+
+msgctxt "#32011"
+msgid "Connection successful. Watchlist, progress, lists and sync read access verified. Write permissions were not tested."
+msgstr ""
+
+msgctxt "#32012"
+msgid "{0} check failed: {1} (HTTP {2})"
+msgstr ""
+
+msgctxt "#32013"
+msgid "Floppy returned an invalid response for the {0} check."
+msgstr ""
