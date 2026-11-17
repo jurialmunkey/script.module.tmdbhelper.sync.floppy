@@ -1,11 +1,11 @@
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urljoin, urlsplit, urlunsplit
 from time import monotonic
 from requests import Session, RequestException
 from jurialmunkey.ftools import cached_property
 from tmdbhelper.lib.addon.logger import kodi_log
 from tmdbhelper_sync_floppy.pagination import FloppyPagination
-from tmdbhelper_sync_floppy.response import FloppyResponse, SUCCESS_CODES
-from tmdbhelper_sync_floppy.sync.store import FloppyWatchedStore
+from tmdbhelper_sync_floppy.response import FloppyError, FloppyResponse, SUCCESS_CODES
+from tmdbhelper_sync_floppy.sync.store import FloppySyncStore
 
 
 class FloppyAPI:
@@ -19,11 +19,15 @@ class FloppyAPI:
         self.mutation_count = 0
 
     @cached_property
-    def watched_store(self):
-        return self.get_watched_store()
+    def sync_store(self):
+        return self.get_sync_store()
 
-    def get_watched_store(self):
-        return FloppyWatchedStore(self.profile, self.server_url, self.api_token)
+    def get_sync_store(self):
+        return FloppySyncStore(self.profile, self.server_url, self.api_token)
+
+    @property
+    def api_root(self):
+        return f'{self.server_url}/api/v1/'
 
     @cached_property
     def session(self):
@@ -38,7 +42,10 @@ class FloppyAPI:
         return session
 
     def request(self, path, method='GET', data=None, params=None):
-        url = f'{self.server_url}/api/v1/{path.strip("/")}/'
+        url = f'{self.api_root}{path.strip("/")}/'
+        return self.send(url, path, method, data, params)
+
+    def send(self, url, path, method='GET', data=None, params=None):
         try:
             response = self.session.request(
                 method, url, json=data, params=params, timeout=self.timeout,
@@ -73,6 +80,25 @@ class FloppyAPI:
 
     def read(self, path, params=None):
         return self.request(path, params=params).require_success()
+
+    def read_url(self, url, params=None):
+        """Read a server-supplied API URL, replacing its query values with params."""
+        target = self.get_api_url(url)
+        query = dict(parse_qsl(target.query, keep_blank_values=True))
+        query.update(params or {})
+        path = target.path[len(urlsplit(self.api_root).path):]
+        url = urlunsplit(target._replace(query=''))
+        return self.send(url, path, params=query).require_success()
+
+    def get_api_url(self, url):
+        root = urlsplit(self.api_root)
+        target = urlsplit(urljoin(self.api_root, url))
+        if (
+                (target.scheme, target.netloc) != (root.scheme, root.netloc)
+                or not target.path.startswith(root.path)
+                or target.username or target.password or target.fragment):
+            raise FloppyError('Floppy supplied a sync URL outside its API')
+        return target
 
     def get_items(self, path, params=None):
         return FloppyPagination(self, path, params).get_items()

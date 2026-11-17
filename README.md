@@ -103,7 +103,13 @@ it is installed. Kodi may show its normal third-party-provider confirmation.
   movie/TV sync model. TV episode identities use the show's TMDb ID plus season
   and episode coordinates.
 
-Snapshots refresh every ten minutes during normal sync. Successful writes
+Watched and playback progress refresh only when their Floppy change feeds
+report a change. Watched, next, aired and up-next episodes also refresh every
+three hours because newly aired episodes, which change show and season
+completion, are absent from the watched feed. Watched rebuilds use the stored
+checkpoint rather than downloading the watched history again. Watchlist,
+collection and dropped snapshots have no change feed and refresh every ten
+minutes during normal sync. Successful writes
 invalidate the relevant selected sync dependencies and clear the API client's
 short-lived snapshots. A partially completed multi-item action also invalidates
 the state it changed before reporting the failure.
@@ -112,14 +118,18 @@ Failed, unauthorized, cancelled, malformed or incomplete snapshots never replace
 the previous sync cache. Unexpected response data fails only the Floppy
 operation and is logged; it is not raised into TMDbHelper. An invalid server
 URL is logged and treated as not configured. A successful empty snapshot clears the relevant columns.
-Watched sync stores a bounded canonical baseline together with its context,
-generation and cursor in the provider's profile folder. Subsequent refreshes,
-including after a Kodi restart or a successful write, replay only watched
-changes and return the complete updated snapshot to TMDbHelper. A missing
-baseline, expired cursor or server reset triggers a new baseline download.
+Watched and progress sync share one bootstrap context. The provider stores
+their bounded canonical baselines together with the context, generation,
+per-resource cursors and the time each resource last changed in the provider's
+profile folder. Each last-activities check replays only the changes after the
+stored cursors, so an unchanged account costs one feed request per resource and
+leaves TMDbHelper's synced data in place. A missing baseline, expired cursor or
+server reset triggers a new baseline download of both resources.
 Records and their checkpoint are saved together only after all pages succeed;
-failed refreshes preserve the previous checkpoint. Storage is scoped to the
-server URL and API token, so changing either starts an independent baseline.
+failed refreshes preserve the previous checkpoint, and a failed activity check
+reports the current time so sync retries. Storage is scoped to the server URL
+and API token, so changing either starts an independent baseline. Upgrading
+from the watched-only checkpoint downloads one new baseline.
 Watched sync does not infer state solely from history, which would undo an
 explicit unwatched assertion.
 
@@ -137,7 +147,7 @@ monitor integration live in `resources/lib/tmdbhelper_sync_floppy`.
 - `api.py`, `pagination.py`, `media.py`, `episodes.py`: HTTP transport,
   complete reads, media identities and released-episode enumeration.
 - `sync/`: API-to-sync-record snapshots, sync types and sync database getters.
-- `sync/store.py`: provider-owned durable watched snapshots and checkpoints.
+- `sync/store.py`: provider-owned durable watched/progress snapshots and checkpoints.
 - `account/`: Floppy write operations and exact consumption/copy targeting.
 - `actions/`: TMDbHelper action interfaces, dialogs and invalidation.
 - `directories/`: containers, properties, output mappers and lazy routes.

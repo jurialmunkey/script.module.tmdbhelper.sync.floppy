@@ -2,7 +2,7 @@ from collections import defaultdict
 from jurialmunkey.ftools import cached_property
 from tmdbhelper_sync_floppy.dates import utc_timestamp
 from tmdbhelper_sync_floppy.media import FloppyMedia
-from tmdbhelper_sync_floppy.sync.state import FloppyWatchedState
+from tmdbhelper_sync_floppy.sync.state import FloppySyncState
 
 
 class FloppySnapshot:
@@ -76,8 +76,7 @@ class FloppyDroppedSnapshot(FloppySnapshot):
 
 class FloppyWatchedSnapshot(FloppySnapshot):
     def get_states(self):
-        return self.api.get_cached_snapshot(
-            'watched_state', lambda: FloppyWatchedState(self.api).get_items())
+        return FloppySyncState(self.api).get_items('watched')
 
     def get_watched_episode_keys(self, tmdb_id=None):
         """(tmdb_id, season, episode) of watched episodes, without metadata lookups."""
@@ -188,12 +187,14 @@ class FloppyCollectionSnapshot(FloppySnapshot):
 
 
 class FloppyPlaybackSnapshot(FloppySnapshot):
+    def get_states(self):
+        return FloppySyncState(self.api).get_items('progress')
+
     def get_items(self):
-        entries = self.api.get_snapshot(
-            'playback/progress', {'media_type': 'movie,episode', 'completed': 'false'})
+        item_types = ('movie',) if self.item_type == 'movie' else ('episode',)
         return [
-            self.get_record(item) for item in self.get_media(entries)
-            if (item.item_type == 'movie') == (self.item_type == 'movie')
+            self.get_record(item) for item in self.get_media(self.get_states())
+            if item.item_type in item_types and not item.entry['completed']
             and item.entry['position_seconds'] > 0 and item.entry['duration_seconds']
         ]
 

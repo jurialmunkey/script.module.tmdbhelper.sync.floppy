@@ -1,9 +1,13 @@
+from tmdbhelper.lib.addon.consts import DEFAULT_EXPIRY
 from tmdbhelper_sync_floppy.sync.datatype import FloppyDataType, FloppyTVDataType
 from tmdbhelper_sync_floppy.sync.snapshot import (
     FloppyWatchlistSnapshot, FloppyCollectionSnapshot, FloppyWatchedSnapshot,
     FloppyPlaybackSnapshot, FloppyNextEpisodesSnapshot, FloppyAllNextEpisodesSnapshot,
     FloppyDroppedSnapshot,
 )
+
+
+AIRING_EXPIRY = 3 * 60 * 60
 
 
 class SyncWatchlist(FloppyDataType):
@@ -31,6 +35,9 @@ class SyncWatched(FloppyTVDataType):
     keys = ('plays', 'last_watched_at', 'watched_episodes')
     method = 'watched'
     last_activities_key = 'watched_at'
+    # Show and season completion depends on aired episode counts, which are absent
+    # from the watched feed.
+    expiry_time = AIRING_EXPIRY
     snapshot_class = FloppyWatchedSnapshot
 
 
@@ -39,6 +46,7 @@ class SyncPlayback(FloppyTVDataType):
     key_prefix = 'playback'
     method = 'playback'
     last_activities_key = 'paused_at'
+    expiry_time = DEFAULT_EXPIRY
     snapshot_class = FloppyPlaybackSnapshot
 
 
@@ -46,6 +54,8 @@ class SyncNextEpisodes(FloppyTVDataType):
     keys = ('next_episode_id', 'next_episode_aired_at', 'aired_episodes')
     method = 'next_episodes'
     last_activities_key = 'watched_at'
+    # Newly aired episodes are absent from the watched feed.
+    expiry_time = AIRING_EXPIRY
     snapshot_class = FloppyNextEpisodesSnapshot
 
 
@@ -58,6 +68,8 @@ class SyncAllNextEpisodes(FloppyTVDataType):
     keys = ('upnext_episode_id',)
     method = 'all_next_episodes'
     last_activities_key = 'watched_at'
+    # Newly aired episodes are absent from the watched feed.
+    expiry_time = AIRING_EXPIRY
     snapshot_class = FloppyAllNextEpisodesSnapshot
 
 
