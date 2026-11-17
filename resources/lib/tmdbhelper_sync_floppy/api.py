@@ -5,16 +5,25 @@ from jurialmunkey.ftools import cached_property
 from tmdbhelper.lib.addon.logger import kodi_log
 from tmdbhelper_sync_floppy.pagination import FloppyPagination
 from tmdbhelper_sync_floppy.response import FloppyResponse, SUCCESS_CODES
+from tmdbhelper_sync_floppy.sync.store import FloppyWatchedStore
 
 
 class FloppyAPI:
     timeout = 30
 
-    def __init__(self, server_url, api_token):
+    def __init__(self, server_url, api_token, profile):
         self.server_url = server_url
         self.api_token = api_token
+        self.profile = profile
         self.snapshots = {}
         self.mutation_count = 0
+
+    @cached_property
+    def watched_store(self):
+        return self.get_watched_store()
+
+    def get_watched_store(self):
+        return FloppyWatchedStore(self.profile, self.server_url, self.api_token)
 
     @cached_property
     def session(self):
@@ -47,6 +56,7 @@ class FloppyAPI:
         elif is_write:
             # Record the write before reading the body: a successful write with an
             # unreadable body has still changed server state.
+            # Keep durable watched state: the next read replays changes from its cursor.
             self.snapshots.clear()
             self.mutation_count += 1
             changed = True

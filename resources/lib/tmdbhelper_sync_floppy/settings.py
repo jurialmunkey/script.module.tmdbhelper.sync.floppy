@@ -1,5 +1,6 @@
 from urllib.parse import urlsplit, urlunsplit
 from xbmcaddon import Addon
+from xbmcvfs import translatePath
 
 
 class FloppySettings:
@@ -7,6 +8,10 @@ class FloppySettings:
 
     def __init__(self):
         self.addon = Addon(self.addon_id)
+
+    @property
+    def profile(self):
+        return translatePath(self.addon.getAddonInfo('profile'))
 
     @property
     def server_url(self):

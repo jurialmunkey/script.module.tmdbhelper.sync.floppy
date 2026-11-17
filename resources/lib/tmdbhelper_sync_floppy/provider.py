@@ -55,7 +55,7 @@ class Provider(SyncProvider):
         return self.get_api()
 
     def get_api(self):
-        return FloppyAPI(self.settings.server_url, self.settings.api_token)
+        return FloppyAPI(self.settings.server_url, self.settings.api_token, self.settings.profile)
 
     def is_authorized(self):
         return self.settings.is_configured

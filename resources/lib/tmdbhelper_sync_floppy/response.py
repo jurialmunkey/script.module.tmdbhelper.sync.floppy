@@ -2,9 +2,10 @@ SUCCESS_CODES = (200, 201, 204)
 
 
 class FloppyError(RuntimeError):
-    def __init__(self, message, status_code=502):
+    def __init__(self, message, status_code=502, code=None):
         super().__init__(message)
         self.status_code = status_code
+        self.code = code
 
 
 # Errors that an unexpected Floppy payload can raise while it is read or mapped.
@@ -32,5 +33,7 @@ class FloppyResponse:
         if self.status_code not in SUCCESS_CODES:
             raise FloppyError(
                 self.data.get('detail') or f'HTTP {self.status_code}',
-                self.status_code)
+                self.status_code,
+                code=self.data.get('code'),
+            )
         return self.data

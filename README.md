@@ -81,9 +81,16 @@ Failed, unauthorized, cancelled, malformed or incomplete snapshots never replace
 the previous sync cache. Unexpected response data fails only the Floppy
 operation and is logged; it is not raised into TMDbHelper. An invalid server
 URL is logged and treated as not configured. A successful empty snapshot clears the relevant columns.
-Watched sync reads a bounded canonical baseline and replays concurrent changes;
-it does not infer watched state solely from history, which would undo an explicit
-unwatched assertion.
+Watched sync stores a bounded canonical baseline together with its context,
+generation and cursor in the provider's profile folder. Subsequent refreshes,
+including after a Kodi restart or a successful write, replay only watched
+changes and return the complete updated snapshot to TMDbHelper. A missing
+baseline, expired cursor or server reset triggers a new baseline download.
+Records and their checkpoint are saved together only after all pages succeed;
+failed refreshes preserve the previous checkpoint. Storage is scoped to the
+server URL and API token, so changing either starts an independent baseline.
+Watched sync does not infer state solely from history, which would undo an
+explicit unwatched assertion.
 
 Floppy's movie history API can omit a Planning tracker once movie-play rows
 exist. If it does not expose the exact Planning consumption, watchlist removal
@@ -99,6 +106,7 @@ monitor integration live in `resources/lib/tmdbhelper_sync_floppy`.
 - `api.py`, `pagination.py`, `media.py`, `episodes.py`: HTTP transport,
   complete reads, media identities and released-episode enumeration.
 - `sync/`: API-to-sync-record snapshots, sync types and sync database getters.
+- `sync/store.py`: provider-owned durable watched snapshots and checkpoints.
 - `account/`: Floppy write operations and exact consumption/copy targeting.
 - `actions/`: TMDbHelper action interfaces, dialogs and invalidation.
 - `directories/`: containers, properties, output mappers and lazy routes.
