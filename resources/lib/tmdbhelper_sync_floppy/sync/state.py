@@ -1,5 +1,7 @@
 from xbmc import Monitor
+from jurialmunkey.ftools import cached_property
 from tmdbhelper.lib.addon.tmdate import get_timestring_zulu_now
+from tmdbhelper_sync_floppy.dates import utc_timestamp
 from tmdbhelper_sync_floppy.response import FloppyError
 
 
@@ -101,17 +103,59 @@ class FloppyWatchedResourceState(FloppyResourceState):
 
 
 class FloppyProgressResourceState(FloppyResourceState):
+    """Progress sync rows carry no time. Floppy's playback list holds the pause times."""
+
     resource = 'progress'
     position_keys = ('position_seconds', 'duration_seconds', 'completed')
+    playback_path = 'playback/progress'
+    playback_params = {'media_type': 'movie,episode'}
+
+    def initialize(self):
+        # A new baseline reads every unfinished pause time rather than recent ones.
+        self.checkpoint['playback_updated_at'] = None
+        super().initialize()
+
+    @property
+    def updated_since(self):
+        # Checkpoints saved before pause times were read have no playback position.
+        return self.checkpoint.get('playback_updated_at')
+
+    @cached_property
+    def timestamps(self):
+        return self.get_timestamps()
+
+    def get_timestamps(self):
+        entries = self.api.get_items(self.playback_path, self.get_timestamp_params())
+        self.set_updated_since(entries)
+        return {self.get_identity(entry): entry['updated_at'] for entry in entries}
+
+    def get_timestamp_params(self):
+        if self.updated_since is None:
+            return dict(self.playback_params, completed='false')
+        return dict(self.playback_params, updated_since=self.updated_since)
+
+    def set_updated_since(self, entries):
+        # Track the server's own newest time so that client clock skew cannot skip pauses.
+        times = [entry['updated_at'] for entry in entries if entry['updated_at']]
+        times += [self.updated_since] if self.updated_since else []
+        self.checkpoint['playback_updated_at'] = max(times, key=utc_timestamp, default=None)
+
+    @staticmethod
+    def get_identity(row):
+        return (
+            row['media_type'], row['source'], str(row['media_id']),
+            row.get('season_number'), row.get('episode_number'))
 
     def get_row(self, row, previous):
-        # Floppy can omit updated_at from progress rows. Keep the previous time for
-        # an unchanged position so it does not appear as a new pause.
-        if row.get('updated_at'):
-            return row
-        return dict(
-            row,
-            updated_at=self.get_previous_updated_at(row, previous) or get_timestring_zulu_now())
+        return dict(row, updated_at=self.get_updated_at(row, previous))
+
+    def get_updated_at(self, row, previous):
+        # Completed or concurrently changed rows can be absent from the playback list.
+        # Keep the previous time for an unchanged position so it is not a new pause.
+        return (
+            self.timestamps.get(self.get_identity(row))
+            or self.get_previous_updated_at(row, previous)
+            or get_timestring_zulu_now())
 
     def get_previous_updated_at(self, row, previous):
         if previous is None:

@@ -130,6 +130,11 @@ failed refreshes preserve the previous checkpoint, and a failed activity check
 reports the current time so sync retries. Storage is scoped to the server URL
 and API token, so changing either starts an independent baseline. Upgrading
 from the watched-only checkpoint downloads one new baseline.
+Floppy's progress sync rows carry no time, so resume times come from
+`playback/progress`. A baseline reads every unfinished entry; later changes read
+only entries updated since the newest server time already seen. A changed row
+missing from that list keeps its previous time when its position is unchanged,
+otherwise it uses the current time.
 Watched sync does not infer state solely from history, which would undo an
 explicit unwatched assertion.
 
